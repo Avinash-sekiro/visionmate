@@ -1,31 +1,81 @@
-name: Build Flutter APK
+name: Flutter CI/CD
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build Flutter App
+    runs-on: ubuntu-latest  # Use macos-latest for iOS builds
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      # ✅ Checkout repository
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
+      # ✅ Setup Flutter (Fixed Dart Version)
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.x  # Use the latest Flutter version
+          flutter-version: "3.29.0"  # Use the correct version
+          cache: true
 
-      - name: Install dependencies
-        run: flutter pub get
+      # ✅ Verify Flutter version & Dart SDK
+      - name: Check Flutter & Dart Versions
+        run: flutter --version
 
+      # ✅ Install dependencies (Force resolution)
+      - name: Install Dependencies
+        run: |
+          flutter clean
+          flutter pub get
+          flutter pub upgrade --major-versions
+
+      # ✅ Analyze the code
+      - name: Analyze Code
+        run: flutter analyze
+
+      # ✅ Run Tests (Optional)
+      - name: Run Tests
+        run: flutter test
+
+      # ✅ Build APK (Android)
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
+      # ✅ Build AppBundle (For Play Store)
+      - name: Build AppBundle
+        run: flutter build appbundle --release
+
+      # ✅ Upload APK as an Artifact
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+
+      # ✅ Upload AAB as an Artifact
+      - name: Upload AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+
+      # ✅ Firebase App Distribution (Optional)
+      - name: Deploy to Firebase App Distribution
+        if: success()
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+        run: |
+          curl -sL firebase.tools | bash
+          firebase login:ci --token $FIREBASE_TOKEN
+          firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
+            --app $FIREBASE_APP_ID \
+            --groups testers
