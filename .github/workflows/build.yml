@@ -4,28 +4,34 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual triggering
 
 jobs:
   build:
+    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.x  # Use the latest Flutter version
+          flutter-version: 3.13.0  # Change to your Flutter version
+          channel: stable
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: flutter pub get
 
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
