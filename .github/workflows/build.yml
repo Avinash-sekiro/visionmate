@@ -19,16 +19,23 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # ✅ Setup Flutter (Fix: Use version 3.29.0)
+      # ✅ Setup Flutter (Fixed Dart Version)
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.29.0"  # Updated to a compatible version
+          flutter-version: "3.29.0"  # Use the correct version
           cache: true
 
-      # ✅ Install dependencies
+      # ✅ Verify Flutter version & Dart SDK
+      - name: Check Flutter & Dart Versions
+        run: flutter --version
+
+      # ✅ Install dependencies (Force resolution)
       - name: Install Dependencies
-        run: flutter pub get
+        run: |
+          flutter clean
+          flutter pub get
+          flutter pub upgrade --major-versions
 
       # ✅ Analyze the code
       - name: Analyze Code
@@ -63,9 +70,12 @@ jobs:
       # ✅ Firebase App Distribution (Optional)
       - name: Deploy to Firebase App Distribution
         if: success()
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
         run: |
           curl -sL firebase.tools | bash
-          firebase login:ci --token ${{ secrets.FIREBASE_TOKEN }}
+          firebase login:ci --token $FIREBASE_TOKEN
           firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
-            --app ${{ secrets.FIREBASE_APP_ID }} \
-            --groups testers  
+            --app $FIREBASE_APP_ID \
+            --groups testers
