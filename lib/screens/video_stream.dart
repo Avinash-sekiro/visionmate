@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer'; // Use log() instead of print()
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -8,7 +9,7 @@ class VideoStreamScreen extends StatefulWidget {
   const VideoStreamScreen({super.key});
 
   @override
-  _VideoStreamScreenState createState() => _VideoStreamScreenState();
+  State<VideoStreamScreen> createState() => _VideoStreamScreenState();
 }
 
 class _VideoStreamScreenState extends State<VideoStreamScreen> {
@@ -29,7 +30,7 @@ class _VideoStreamScreenState extends State<VideoStreamScreen> {
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
-        print("No cameras found");
+        log("No cameras found");
         return;
       }
 
@@ -44,7 +45,7 @@ class _VideoStreamScreenState extends State<VideoStreamScreen> {
       if (!mounted) return;
       setState(() {});
     } catch (e) {
-      print("Error initializing camera: $e");
+      log("Error initializing camera: $e");
     }
   }
 
@@ -68,19 +69,19 @@ class _VideoStreamScreenState extends State<VideoStreamScreen> {
           }
         },
         onDone: () {
-          print("WebSocket disconnected");
-          _isWebSocketConnected = false;
+          log("WebSocket disconnected");
+          setState(() => _isWebSocketConnected = false);
         },
         onError: (error) {
-          print("WebSocket error: $error");
-          _isWebSocketConnected = false;
+          log("WebSocket error: $error");
+          setState(() => _isWebSocketConnected = false);
         },
       );
 
-      _isWebSocketConnected = true;
+      setState(() => _isWebSocketConnected = true);
     } catch (e) {
-      print("Error connecting WebSocket: $e");
-      _isWebSocketConnected = false;
+      log("Error connecting WebSocket: $e");
+      setState(() => _isWebSocketConnected = false);
     }
   }
 
@@ -89,12 +90,12 @@ class _VideoStreamScreenState extends State<VideoStreamScreen> {
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text("Obstacle Detected!"),
-          content: Text("Watch out for objects in front."),
+          title: const Text("Obstacle Detected!"),
+          content: const Text("Watch out for objects in front."),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text("OK"),
+              child: const Text("OK"),
             ),
           ],
         ),
@@ -104,11 +105,11 @@ class _VideoStreamScreenState extends State<VideoStreamScreen> {
 
   Future<void> _startStreaming() async {
     if (_controller == null || !_controller!.value.isInitialized) {
-      print("Camera not initialized");
+      log("Camera not initialized");
       return;
     }
     if (!_isWebSocketConnected) {
-      print("WebSocket not connected!");
+      log("WebSocket not connected!");
       return;
     }
 
@@ -121,27 +122,27 @@ class _VideoStreamScreenState extends State<VideoStreamScreen> {
           final bytes = await imageFile.readAsBytes();
           final base64Image = base64Encode(bytes);
 
-          _channel!.sink.add(jsonEncode({"frame": base64Image}));
+          _channel?.sink.add(jsonEncode({"frame": base64Image}));
         }
       } catch (e) {
-        print("Error capturing frame: $e");
+        log("Error capturing frame: $e");
       }
-      await Future.delayed(Duration(milliseconds: 200));
+      await Future.delayed(const Duration(milliseconds: 200));
     }
   }
 
   Future<XFile?> _captureFrame() async {
     if (_controller == null || !_controller!.value.isInitialized) {
-      print("Camera not initialized");
+      log("Camera not initialized");
       return null;
     }
 
     try {
       final XFile imageFile = await _controller!.takePicture();
-      print("Captured frame: ${imageFile.path}");
+      log("Captured frame: ${imageFile.path}");
       return imageFile;
     } catch (e) {
-      print("Error taking picture: $e");
+      log("Error taking picture: $e");
       return null;
     }
   }
@@ -160,7 +161,7 @@ class _VideoStreamScreenState extends State<VideoStreamScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Live Video Stream')),
+      appBar: AppBar(title: const Text('Live Video Stream')),
       body: Column(
         children: [
           Expanded(
@@ -169,36 +170,29 @@ class _VideoStreamScreenState extends State<VideoStreamScreen> {
                     aspectRatio: _controller!.value.aspectRatio,
                     child: CameraPreview(_controller!),
                   )
-                : Center(child: CircularProgressIndicator()),
+                : const Center(child: CircularProgressIndicator()),
           ),
-
-          SizedBox(height: 20),
-
+          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: _isStreaming ? _stopStreaming : _startStreaming,
             child: Text(_isStreaming ? "Stop Streaming" : "Start Streaming"),
           ),
-
-          SizedBox(height: 10),
-
+          const SizedBox(height: 10),
           ElevatedButton(
             onPressed: () {
               if (_isWebSocketConnected) {
                 _channel!.sink.add(jsonEncode({"enable_transformer": true}));
               } else {
-                print("WebSocket is not connected!");
+                log("WebSocket is not connected!");
               }
             },
-            child: Text("Enable Full Object Detection"),
+            child: const Text("Enable Full Object Detection"),
           ),
-
-          SizedBox(height: 20),
-
-          Text("Obstacle Detection Active...", style: TextStyle(fontSize: 18)),
-
+          const SizedBox(height: 20),
+          const Text("Obstacle Detection Active...", style: TextStyle(fontSize: 18)),
           _obstacles.isNotEmpty
-              ? Text("Detected Objects: ${_obstacles.join(", ")}", style: TextStyle(color: Colors.red))
-              : Text("No obstacles detected"),
+              ? Text("Detected Objects: ${_obstacles.join(", ")}", style: const TextStyle(color: Colors.red))
+              : const Text("No obstacles detected"),
         ],
       ),
     );
