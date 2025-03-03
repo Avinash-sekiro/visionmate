@@ -1,4 +1,4 @@
-name: Flutter Build
+name: Flutter CI/CD
 
 on:
   push:
@@ -7,45 +7,65 @@ on:
   pull_request:
     branches:
       - main
-  workflow_dispatch:
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build Flutter App
+    runs-on: ubuntu-latest  # Use macos-latest for iOS builds
 
     steps:
+      # ✅ Checkout repository
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # ✅ Setup Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.29.0  # Updated Flutter version
-          channel: stable
+          flutter-version: "3.19.2"  # Replace with the latest stable version
 
+      # ✅ Install dependencies
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Analyze Project
+      # ✅ Analyze the code
+      - name: Analyze Code
         run: flutter analyze
 
+      # ✅ Run Tests (Optional)
       - name: Run Tests
         run: flutter test
 
+      # ✅ Build APK (Android)
       - name: Build APK
         run: flutter build apk --release
 
-      - name: Build App Bundle
-        run: flutter build appbundle
+      # ✅ Build AppBundle (For Play Store)
+      - name: Build AppBundle
+        run: flutter build appbundle --release
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4  # Updated to v4
+      # ✅ Upload APK as an Artifact
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: release-apk
+          name: android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4  # Updated to v4
+      # ✅ Upload AAB as an Artifact
+      - name: Upload AAB Artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: release-aab
+          name: android-aab
           path: build/app/outputs/bundle/release/app-release.aab
+
+      # ✅ Firebase App Distribution (Optional)
+      - name: Deploy to Firebase App Distribution
+        if: success()
+        run: |
+          curl -sL firebase.tools | bash
+          firebase login:ci --token ${{ secrets.FIREBASE_TOKEN }}
+          firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
+            --app ${{ secrets.FIREBASE_APP_ID }} \
+            --groups testers
+
